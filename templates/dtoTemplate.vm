@@ -1,0 +1,14 @@
+// dtoTemplate.vm
+package ${packageName}.dto;
+
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+
+@Getter
+@AllArgsConstructor
+public class ${className}DTO {
+
+#foreach($field in $fields)
+private final ${field.type} ${field.name};
+#end
+}

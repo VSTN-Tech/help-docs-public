@@ -1,0 +1,19 @@
+// mapperTemplate.vm
+package ${packageName}.mapper;
+
+import ${packageName}.dto.${className}DTO;
+import ${packageName}.${className};
+import org.mapstruct.Mapper;
+import org.mapstruct.factory.Mappers;
+
+@Mapper
+public interface ${className}Mapper {
+
+${className}Mapper INSTANCE = Mappers.getMapper(${className}Mapper.class);
+
+// Map POJO to DTO
+${className}DTO to${className}DTO(${className} ${className.toLowerCase()});
+
+// Map DTO to POJO
+${className} to${className}(${className}DTO ${className.toLowerCase()}DTO);
+}

@@ -1,0 +1,59 @@
+// controllerTemplate.vm
+package ${packageName}.controller;
+
+import ${packageName}.model.${className};
+import ${packageName}.service.${className}Service;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.Optional;
+
+@RestController
+@RequestMapping("/api/${className.toLowerCase()}")
+public class ${className}Controller {
+
+private final ${className}Service service;
+
+@Autowired
+public ${className}Controller(${className}Service service) {
+this.service = service;
+}
+
+@GetMapping
+public List<${className}> getAll() {
+return service.findAll();
+}
+
+@GetMapping("/{id}")
+public ResponseEntity<${className}> getById(@PathVariable Integer id) {
+Optional<${className}> entity = service.findById(id);
+return entity.map(ResponseEntity::ok)
+.orElse(new ResponseEntity<>(HttpStatus.NOT_FOUND));
+}
+
+@PostMapping
+public ${className} create(@RequestBody ${className} entity) {
+return service.save(entity);
+}
+
+@PutMapping("/{id}")
+public ResponseEntity<${className}> update(@PathVariable Integer id, @RequestBody ${className} entity) {
+if (!service.findById(id).isPresent()) {
+return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+}
+entity.setId(id);  // Assuming ${className} has a setId method
+return ResponseEntity.ok(service.save(entity));
+}
+
+@DeleteMapping("/{id}")
+public ResponseEntity<Void> delete(@PathVariable Integer id) {
+    if (!service.findById(id).isPresent()) {
+    return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+    }
+    service.deleteById(id);
+    return new ResponseEntity<>(HttpStatus.NO_CONTENT);
+    }
+    }
