@@ -6,75 +6,47 @@
     <title>Java Code Generator</title>
     <link href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        /* CSS for layout, similar to previous examples */
+        /* Your existing styles */
     </style>
-    <!-- Handlebars.js for templating -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/handlebars.js/4.7.7/handlebars.min.js"></script>
-    <!-- Monaco Editor for in-browser code editing -->
-    <script src="https://unpkg.com/monaco-editor/min/vs/loader.js"></script>
-    <!-- jQuery for loading external templates -->
-    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
 </head>
 <body>
     <div class="container-fluid">
-        <!-- File explorer and editor sections similar to previous example -->
+        <!-- File explorer and editor sections as in previous example -->
+        <button id="generateButton" class="btn btn-primary" onclick="generateCode()" disabled>Generate Code</button>
     </div>
 
+    <!-- External Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/handlebars.js/4.7.7/handlebars.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script src="https://unpkg.com/monaco-editor/min/vs/loader.js"></script>
+    
     <script>
-        // Initialize Monaco Editor
-        require.config({ paths: { 'vs': 'https://unpkg.com/monaco-editor/min/vs' }});
-        require(['vs/editor/editor.main'], function() {
-            window.editor = monaco.editor.create(document.getElementById('editor'), {
-                language: 'java',
-                theme: 'vs-dark',
-                automaticLayout: true
+        document.addEventListener("DOMContentLoaded", function() {
+            // Initialize Monaco Editor only after DOM content is loaded
+            require.config({ paths: { 'vs': 'https://unpkg.com/monaco-editor/min/vs' }});
+            require(['vs/editor/editor.main'], function() {
+                window.editor = monaco.editor.create(document.getElementById('editor'), {
+                    language: 'java',
+                    theme: 'vs-dark',
+                    automaticLayout: true
+                });
+            });
+
+            // Template loading function as per previous example
+            function loadTemplate(name, path) {
+                return $.get(path, (templateContent) => {
+                    templates[name] = Handlebars.compile(templateContent);
+                });
+            }
+
+            // Ensure templates are loaded before enabling the button
+            loadTemplates().then(() => {
+                const generateButton = document.getElementById("generateButton");
+                if (generateButton) {
+                    generateButton.disabled = false;
+                }
             });
         });
-
-        // Function to load templates and initialize code generation
-        const templates = {};
-
-        function loadTemplate(name, path) {
-            return $.get(path, (templateContent) => {
-                templates[name] = Handlebars.compile(templateContent);
-            });
-        }
-
-        function loadTemplates() {
-            return Promise.all([
-                loadTemplate('pojo', 'templates/pojoTemplate.vm'),
-                loadTemplate('dto', 'templates/dtoTemplate.vm'),
-                loadTemplate('repository', 'templates/repositoryTemplate.vm'),
-                loadTemplate('service', 'templates/serviceTemplate.vm'),
-                loadTemplate('controller', 'templates/controllerTemplate.vm')
-            ]);
-        }
-
-        // Call this function after templates are loaded
-        function generateCode() {
-            const schema = document.getElementById('schema').value;
-            const className = toPascalCase(schema.match(/CREATE TABLE (\w+)/i)[1]);
-            const packageName = 'com.example.generated';
-            const fields = [...schema.matchAll(/(\w+)\s+(\w+)/g)]
-                .map(match => ({ name: match[1], type: sqlToJavaType(match[2]) }));
-
-            const fileContents = {
-                "POJO": templates.pojo({ packageName, className, fields }),
-                "DTO": templates.dto({ packageName, className, fields }),
-                "Repository": templates.repository({ packageName, className }),
-                "Service": templates.service({ packageName, className }),
-                "Controller": templates.controller({ packageName, className })
-            };
-
-            // Populate file list and show first file in editor, as in previous example
-        }
-
-        // Load templates before enabling code generation
-        loadTemplates().then(() => {
-            document.getElementById("generateButton").disabled = false;
-        });
-
-        // Helper functions (toPascalCase, sqlToJavaType) here, similar to previous examples
     </script>
 </body>
 </html>
