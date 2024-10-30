@@ -1,0 +1,14 @@
+// pojoTemplate.vm
+package ${packageName};
+
+import lombok.Getter;
+import lombok.Setter;
+
+@Getter
+@Setter
+public class ${className} {
+
+#foreach($field in $fields)
+private ${field.type} ${field.name};
+#end
+}
