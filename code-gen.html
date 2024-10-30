@@ -6,7 +6,7 @@
     <title>Java Code Generator</title>
     <link href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
     <style>
-       html, body {
+        html, body {
             height: 100%;
             margin: 0;
             display: flex;
@@ -55,18 +55,33 @@
 </head>
 <body>
     <div class="container-fluid">
-        <!-- File explorer and editor sections as in previous example -->
-        <button id="generateButton" class="btn btn-primary" onclick="generateCode()" disabled>Generate Code</button>
+        <!-- Left Section: File Explorer -->
+        <div class="file-explorer">
+            <h4 class="text-primary">Generated Files</h4>
+            <div class="form-section">
+                <label for="schema" class="font-weight-bold">Enter SQL Schema:</label>
+                <textarea id="schema" class="form-control" rows="5" placeholder="CREATE TABLE example (id INT PRIMARY KEY, name VARCHAR(255))"></textarea>
+                <button id="generateButton" class="btn btn-primary btn-block mt-2" onclick="generateCode()" disabled>Generate Code</button>
+            </div>
+            <ul class="file-list" id="fileList">
+                <!-- File names will be populated here dynamically -->
+            </ul>
+        </div>
+        
+        <!-- Right Section: Editor -->
+        <div class="editor-section">
+            <div id="editor"></div>
+        </div>
     </div>
 
     <!-- External Libraries -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/handlebars.js/4.7.7/handlebars.min.js"></script>
     <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
     <script src="https://unpkg.com/monaco-editor/min/vs/loader.js"></script>
-    
+
     <script>
         document.addEventListener("DOMContentLoaded", function() {
-            // Initialize Monaco Editor only after DOM content is loaded
+            // Initialize Monaco Editor
             require.config({ paths: { 'vs': 'https://unpkg.com/monaco-editor/min/vs' }});
             require(['vs/editor/editor.main'], function() {
                 window.editor = monaco.editor.create(document.getElementById('editor'), {
@@ -76,11 +91,23 @@
                 });
             });
 
-            // Template loading function as per previous example
+            // JavaScript templates for generating different classes
+            const templates = {};
+
             function loadTemplate(name, path) {
                 return $.get(path, (templateContent) => {
                     templates[name] = Handlebars.compile(templateContent);
                 });
+            }
+
+            function loadTemplates() {
+                return Promise.all([
+                    loadTemplate('pojo', 'templates/pojoTemplate.vm'),
+                    loadTemplate('dto', 'templates/dtoTemplate.vm'),
+                    loadTemplate('repository', 'templates/repositoryTemplate.vm'),
+                    loadTemplate('service', 'templates/serviceTemplate.vm'),
+                    loadTemplate('controller', 'templates/controllerTemplate.vm')
+                ]);
             }
 
             // Ensure templates are loaded before enabling the button
@@ -90,6 +117,55 @@
                     generateButton.disabled = false;
                 }
             });
+
+            // Function to convert SQL type to Java type
+            function sqlToJavaType(sqlType) {
+                sqlType = sqlType.toLowerCase();
+                if (sqlType.includes("int")) return "Integer";
+                if (sqlType.includes("varchar") || sqlType === "text") return "String";
+                if (sqlType === "boolean") return "Boolean";
+                return "Object";  // Default for unsupported types
+            }
+
+            // Convert table name to PascalCase
+            function toPascalCase(str) {
+                return str.replace(/(^\w|_\w)/g, text => text.replace('_', '').toUpperCase());
+            }
+
+            // Main function to generate code based on schema input
+            function generateCode() {
+                const schema = document.getElementById('schema').value;
+                const className = toPascalCase(schema.match(/CREATE TABLE (\w+)/i)[1]);
+                const packageName = 'com.example.generated';
+                const fields = [...schema.matchAll(/(\w+)\s+(\w+)/g)]
+                    .map(match => ({ name: match[1], type: sqlToJavaType(match[2]) }));
+
+                const fileContents = {
+                    "POJO": templates.pojo({ packageName, className, fields }),
+                    "DTO": templates.dto({ packageName, className, fields }),
+                    "Repository": templates.repository({ packageName, className }),
+                    "Service": templates.service({ packageName, className }),
+                    "Controller": templates.controller({ packageName, className })
+                };
+
+                // Populate file list with file names
+                const fileList = document.getElementById("fileList");
+                fileList.innerHTML = '';
+                Object.keys(fileContents).forEach(fileName => {
+                    const listItem = document.createElement('li');
+                    listItem.innerText = `${className}${fileName}.java`;
+                    listItem.addEventListener('click', () => displayFileContent(fileContents[fileName]));
+                    fileList.appendChild(listItem);
+                });
+
+                // Display the first file by default
+                displayFileContent(Object.values(fileContents)[0]);
+            }
+
+            // Function to display selected file content in Monaco Editor
+            function displayFileContent(content) {
+                window.editor.setValue(content);
+            }
         });
     </script>
 </body>
