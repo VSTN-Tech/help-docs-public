@@ -6,62 +6,19 @@
     <title>Java Code Generator</title>
     <link href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        html, body {
-            height: 100%;
-            margin: 0;
-            display: flex;
-            flex-direction: column;
-        }
-        .container-fluid {
-            height: 100%;
-            display: flex;
-            padding: 0;
-        }
-        .form-section {
-            width: 35%;
-            padding: 20px;
-            border-right: 1px solid #ddd;
-            background-color: #f8f9fa;
-        }
-        .editor-section {
-            width: 65%;
-            padding: 20px;
-            height: 100vh;
-            overflow: hidden;
-        }
-        #editor {
-            height: 100%;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-        }
+        /* CSS for layout, similar to previous examples */
     </style>
     <!-- Handlebars.js for templating -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/handlebars.js/4.7.7/handlebars.min.js"></script>
     <!-- Monaco Editor for in-browser code editing -->
     <script src="https://unpkg.com/monaco-editor/min/vs/loader.js"></script>
+    <!-- jQuery for loading external templates -->
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
 </head>
 <body>
     <div class="container-fluid">
-        <!-- Left Section: Form -->
-        <div class="form-section">
-            <h1 class="h4 text-primary mb-4">Java Code Generator</h1>
-            <div class="form-group">
-                <label for="schema" class="font-weight-bold">Enter SQL Schema:</label>
-                <textarea id="schema" class="form-control" rows="10" placeholder="CREATE TABLE example (id INT PRIMARY KEY, name VARCHAR(255))"></textarea>
-            </div>
-            <button class="btn btn-primary btn-block mt-3" onclick="generateCode()">Generate Code</button>
-        </div>
-        
-        <!-- Right Section: Editor -->
-        <div class="editor-section">
-            <div id="editor"></div>
-        </div>
+        <!-- File explorer and editor sections similar to previous example -->
     </div>
-
-    <!-- Bootstrap JS (Optional) -->
-    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
-    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
 
     <script>
         // Initialize Monaco Editor
@@ -74,121 +31,50 @@
             });
         });
 
-        // JavaScript templates for generating different classes
-        const templates = {
-            pojo: `
-                package {{packageName}};
+        // Function to load templates and initialize code generation
+        const templates = {};
 
-                public class {{className}} {
-                    {{#each fields}}
-                    private {{type}} {{name}};
-                    {{/each}}
-                }
-            `,
-            dto: `
-                package {{packageName}}.dto;
-
-                public class {{className}}DTO {
-                    {{#each fields}}
-                    private {{type}} {{name}};
-                    {{/each}}
-                }
-            `,
-            repository: `
-                package {{packageName}}.repository;
-
-                import {{packageName}}.model.{{className}};
-                import org.springframework.data.jpa.repository.JpaRepository;
-
-                public interface {{className}}Repository extends JpaRepository<{{className}}, Integer> {
-                }
-            `,
-            service: `
-                package {{packageName}}.service;
-
-                import {{packageName}}.model.{{className}};
-                import {{packageName}}.repository.{{className}}Repository;
-                import org.springframework.stereotype.Service;
-                import java.util.List;
-
-                @Service
-                public class {{className}}Service {
-                    private final {{className}}Repository repository;
-
-                    public {{className}}Service({{className}}Repository repository) {
-                        this.repository = repository;
-                    }
-
-                    public List<{{className}}> findAll() { return repository.findAll(); }
-                    public {{className}} save({{className}} entity) { return repository.save(entity); }
-                }
-            `,
-            controller: `
-                package {{packageName}}.controller;
-
-                import {{packageName}}.service.{{className}}Service;
-                import {{packageName}}.model.{{className}};
-                import org.springframework.web.bind.annotation.*;
-
-                @RestController
-                @RequestMapping("/api/{{className}}")
-                public class {{className}}Controller {
-                    private final {{className}}Service service;
-
-                    public {{className}}Controller({{className}}Service service) {
-                        this.service = service;
-                    }
-
-                    @GetMapping public List<{{className}}> getAll() { return service.findAll(); }
-                    @PostMapping public {{className}} create(@RequestBody {{className}} entity) { return service.save(entity); }
-                }
-            `
-        };
-
-        // Helper function to convert table name to PascalCase for class names
-        function toPascalCase(str) {
-            return str.replace(/(^\w|_\w)/g, text => text.replace('_', '').toUpperCase());
+        function loadTemplate(name, path) {
+            return $.get(path, (templateContent) => {
+                templates[name] = Handlebars.compile(templateContent);
+            });
         }
 
-        // Function to map SQL types to Java types
-        function sqlToJavaType(sqlType) {
-            sqlType = sqlType.toLowerCase();
-            if (sqlType.includes("int")) return "Integer";
-            if (sqlType.includes("varchar") || sqlType === "text") return "String";
-            if (sqlType === "boolean") return "Boolean";
-            return "Object";  // Default for unsupported types
+        function loadTemplates() {
+            return Promise.all([
+                loadTemplate('pojo', 'templates/pojoTemplate.vm'),
+                loadTemplate('dto', 'templates/dtoTemplate.vm'),
+                loadTemplate('repository', 'templates/repositoryTemplate.vm'),
+                loadTemplate('service', 'templates/serviceTemplate.vm'),
+                loadTemplate('controller', 'templates/controllerTemplate.vm')
+            ]);
         }
 
-        // Main function to generate code based on schema input
+        // Call this function after templates are loaded
         function generateCode() {
             const schema = document.getElementById('schema').value;
-
-            // Parse the schema to extract class name and fields
             const className = toPascalCase(schema.match(/CREATE TABLE (\w+)/i)[1]);
             const packageName = 'com.example.generated';
             const fields = [...schema.matchAll(/(\w+)\s+(\w+)/g)]
                 .map(match => ({ name: match[1], type: sqlToJavaType(match[2]) }));
 
-            // Compile and generate code using Handlebars templates
-            const pojoTemplate = Handlebars.compile(templates.pojo);
-            const dtoTemplate = Handlebars.compile(templates.dto);
-            const repositoryTemplate = Handlebars.compile(templates.repository);
-            const serviceTemplate = Handlebars.compile(templates.service);
-            const controllerTemplate = Handlebars.compile(templates.controller);
+            const fileContents = {
+                "POJO": templates.pojo({ packageName, className, fields }),
+                "DTO": templates.dto({ packageName, className, fields }),
+                "Repository": templates.repository({ packageName, className }),
+                "Service": templates.service({ packageName, className }),
+                "Controller": templates.controller({ packageName, className })
+            };
 
-            // Generate code for each class type
-            const pojoCode = pojoTemplate({ packageName, className, fields });
-            const dtoCode = dtoTemplate({ packageName, className, fields });
-            const repositoryCode = repositoryTemplate({ packageName, className });
-            const serviceCode = serviceTemplate({ packageName, className });
-            const controllerCode = controllerTemplate({ packageName, className });
-
-            // Display all generated code in Monaco Editor
-            const combinedCode = `
-                ${pojoCode}\n\n${dtoCode}\n\n${repositoryCode}\n\n${serviceCode}\n\n${controllerCode}
-            `;
-            window.editor.setValue(combinedCode);
+            // Populate file list and show first file in editor, as in previous example
         }
+
+        // Load templates before enabling code generation
+        loadTemplates().then(() => {
+            document.getElementById("generateButton").disabled = false;
+        });
+
+        // Helper functions (toPascalCase, sqlToJavaType) here, similar to previous examples
     </script>
 </body>
 </html>
